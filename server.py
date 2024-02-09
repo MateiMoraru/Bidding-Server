@@ -2,6 +2,7 @@ from datetime import datetime
 import socket
 import sys
 import threading
+from typing import List
 import database
 
 class Server:
@@ -45,16 +46,61 @@ class Server:
 
         if name == False:
             self.send(conn, "shutdown")
-            self.log("Invalid name error!")
+            self.log("Invalid name", conn, True)
             self.disconnect_conn(conn, addr)
             self.shutdown()
         else:
             self.log(f"{name} connected successfully")
             self.send(conn, "Connected successfully! -w")
-            
+
         #notifs = self.get_notifications(self, name)
         #printls(notifs)
         #self.sendls(notifs)
+            
+        self.loop(conn, addr, name)
+
+
+    def loop(self, conn: socket.socket, addr: str, name: str):
+        while True:
+            try:
+                response = self.recv(conn)
+            except KeyboardInterrupt:
+                self.log("Keyboard Interrupt, closing server...", conn)
+                self.listening = False
+                self.disconnect_conn(conn, addr)
+                self.shutdown()
+                return
+            
+            print(f"[{name}] {response}")
+            
+            if ' ' in response:
+                argv = response.split(' ')
+            else:
+                self.send(conn, "OK")
+                continue
+
+            match argv[0]:
+                case "sell":
+                    self.handle_sell_item(conn, name, argv)
+                case "get":
+                    if argv[1] == "listings":
+                        self.handle_get_listings(conn, name, argv)
+                    else:
+                        pass
+                case _:
+                    self.log("Unknown command", conn, True)
+
+    
+    def handle_sell_item(self, conn: socket.socket, name: str, argv: List[str]):
+        try:
+            item_name = argv[1]
+            smallest_bid = int(argv[2])
+        except:
+            self.log("Expected: sell <item_name: str> <smallest_bid: int>", conn, True)
+            return
+    
+        self.database.add_item_listing(name, item_name, smallest_bid)
+        self.send(conn, "Listing created successfully-w")
 
 
     def handle_sign_up(self, conn: socket.socket):
@@ -151,8 +197,10 @@ class Server:
         print(msg)
 
         if conn is not None:
-            self.send(conn, msg + '-w')
-        
+            try:
+                self.send(conn, msg + '-w')
+            except Exception as e:
+                print(conn, "\n", message)
 
 def printls(ls: list):
     for i, el in enumerate(ls):

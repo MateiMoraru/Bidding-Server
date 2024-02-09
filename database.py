@@ -2,20 +2,22 @@ import hashlib
 import pymongo
 from typing import List
 from bson import json_util
-import datetime
+from datetime import datetime
 
 class Mongo:
     def __init__(self, addr:str="mongodb://localhost:27017/"):
         try:
             self.client = pymongo.MongoClient(addr)
             self.client.server_info()
+            log(f"Connected to database successfully")
         except pymongo.errors.ServerSelectionTimeoutError as err:
             print(err)
 
-        self.users = self.client["Bidding-Server"]["Client"]
+        self.users = self.client["Bidding-Server"]["Clients"]
+        self.listings = self.client["Bidding-Server"]["Listings"]
 
 
-    def add_user(self, name:str, password:str):
+    def add_user(self, name: str, password: str):
         data = {
             "name": name, 
             "password": password, 
@@ -25,13 +27,24 @@ class Mongo:
             "notifications": []
             }
         self.users.insert_one(data)
+        log(f"New user added: \n\t{parse_json(data)}")
 
 
-    def add_credit(self, name:str, value:int):
-        self.users.find_one_and_update({"name": name}, {"$inc": {"credit": value}})
+    def add_item_listing(self, name: str, item_name: str, smallest_bid: int):
+        listing = {
+            "seller": name,
+            "product_name": item_name,
+            "smallest_bid": smallest_bid,
+            "highest_bid": smallest_bid,
+            "tags": [],
+            "status": 0
+        }
+
+        self.listings.insert_one(listing)
+        log(f"New listing added: \n\t{parse_json(listing)}")
     
 
-    def request(self, name:str, target:str, value:int, message=None):
+    def request(self, name: str, target: str, value: int, message: str=None):
         id = self.transaction_id(date(), name, target, value)
         request = {
             "from": name,
@@ -50,12 +63,10 @@ class Mongo:
         try:
             find = self.users.find_one({"name": name})
         except:
-            print(f"Unable to find a user called {name}")
+            log(f"Unable to find user: {name}", True)
         
         if find != None:
-            print(find[field])
             return find[field]
-        print(None)
         return None
 
 
@@ -79,12 +90,13 @@ class Mongo:
 
     def search_name(self, name:str):
         find = self.users.find_one({"name": name})
+        log(f"Found user {name} &cursor {find}")
         return find != None
     
     
     def search_name_pwd(self, name:str, pwd:str):
         find = self.users.find_one({'name': name, 'password': pwd})
-        print(find)
+        log(f"Found user matching password {name} &cursor {find}")
         return find != None
     
 
@@ -150,6 +162,15 @@ class Mongo:
 
 def date():
     return datetime.datetime.today().strftime('%Y-%m-%d')
+
+
+def log(message: str, error: bool=False):
+    t = datetime.now()
+    if not error:
+        msg = f"[INFO {t.hour}:{t.minute}:{t.second}] {message}"
+    else:
+        msg = f"[ERROR]: {message}"
+    print(msg)
 
 
 def parse_json(data):

@@ -31,6 +31,7 @@ class Client:
 
         
         try:
+            resp = self.recv()
             self.run()
         except Exception as e:
             print(f"ERROR: {e}")
@@ -38,7 +39,12 @@ class Client:
 
 
     def run(self):
-        pass
+        while True:
+            print()
+            data = input(">")
+            self.send(data)
+            resp = self.recv()
+            self.process_recv(resp)
 
     
     def handle_sign_up(self):
@@ -132,17 +138,4 @@ if __name__ == "__main__":
     client.connect()
 
 
-    def run(self):
-        while True:
-            print()
-            data = input(">")
-            self.send(data)
-            resp = self.recv()
-            self.process_recv(resp)
-
-            if "Do you want to add the difference to your debt" in resp:
-                self.handle_add_to_debt(self)
-            elif "Signup?" in resp:
-                self.handle_log_out()
-            elif "password: " in resp:
-                self.handle_get_password(resp)
+    
