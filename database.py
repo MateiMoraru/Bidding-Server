@@ -68,6 +68,14 @@ class Mongo:
         if find != None:
             return find[field]
         return None
+    
+
+    def get_listings(self):
+        listings = []
+        for el in self.listings.find({}):
+            listings.append(el)
+
+        return listings
 
 
     def get_user_raw(self, name:str):

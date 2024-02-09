@@ -102,6 +102,26 @@ class Server:
         self.database.add_item_listing(name, item_name, smallest_bid)
         self.send(conn, "Listing created successfully-w")
 
+    
+    def handle_get_listings(self, conn: socket.socket, name: str, argv: List[str]):
+        listings = self.database.get_listings()
+        self.listings = listings
+        message = ""
+
+        for i, el in enumerate(listings):
+            product_name = el["product_name"]
+            seller = el["seller"]
+            smallest_bid = el["smallest_bid"]
+            highest_bid = el["highest_bid"]
+            msg = ""
+            offset = len("{i}.") * ' '
+            msg += f"{i}. Item: {product_name}\n"
+            msg += f"{offset}Smallest bid: {smallest_bid}\n"
+            msg += f"{offset}Highest bid: {highest_bid}"
+            message += msg + '\n'
+        
+        self.send(conn, message)
+
 
     def handle_sign_up(self, conn: socket.socket):
         name, pwd = self.recv(conn).split(' ')
