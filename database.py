@@ -44,6 +44,10 @@ class Mongo:
         log(f"New listing added: \n\t{parse_json(listing)}")
     
 
+    def add_tag(self, item: pymongo.CursorType, tag: str):
+        self.listings.find_one_and_update({"seller": item["seller"]}, {"$push": {"tags": tag}})
+
+
     def request(self, name: str, target: str, value: int, message: str=None):
         id = self.transaction_id(date(), name, target, value)
         request = {

@@ -61,6 +61,8 @@ class Server:
 
 
     def loop(self, conn: socket.socket, addr: str, name: str):
+        selected_listing = None
+
         while True:
             try:
                 response = self.recv(conn)
@@ -87,6 +89,11 @@ class Server:
                         self.handle_get_listings(conn, name, argv)
                     else:
                         pass
+                case "select":
+                    selected_listing = self.handle_select(conn, name, argv)
+                case "add":
+                    if argv[1] == "tag":
+                        self.handle_add_tag(conn, name, argv)
                 case _:
                     self.log("Unknown command", conn, True)
 
@@ -113,15 +120,53 @@ class Server:
             seller = el["seller"]
             smallest_bid = el["smallest_bid"]
             highest_bid = el["highest_bid"]
+            tags = el["tags"]
             msg = ""
             offset = len("{i}.") * ' '
             msg += f"{i}. Item: {product_name}\n"
             msg += f"{offset}Smallest bid: {smallest_bid}\n"
-            msg += f"{offset}Highest bid: {highest_bid}"
+            msg += f"{offset}Highest bid: {highest_bid}\n"
+            msg += f"{offset}Seller: {seller}\n"
+            msg += f"{offset}Tags: {tags}"
             message += msg + '\n'
         
         self.send(conn, message)
+        self.log(message)
 
+
+    def handle_select(self, conn: socket.socket, name: str, argv: List[str]):
+        try:
+            index = int(argv[1])
+        except:
+            self.log("Expected: select <index: int>", conn, True)
+            return
+        
+        try:
+            listing = self.listening[index]
+        except:
+            self.log("You need to run: get listings", conn, True)
+            return
+
+        return listing
+
+
+    def handle_add_tag(self, conn: socket.socket, name: str, argv: List[str]):
+        try:
+            index = int(argv[2])
+            tag = argv[3]
+        except:
+            self.log("Expected: add tag <intex: int> <tag: str>", conn, True)
+            return
+        
+        try:
+            item = self.listings[index]
+            self.database.add_tag(item, tag)
+        except:
+            self.log("You need to run: get listings", conn, True)
+            return
+    
+        self.log(f"Added tag: {tag} to listing: {item["product_name"]}", conn)
+        
 
     def handle_sign_up(self, conn: socket.socket):
         name, pwd = self.recv(conn).split(' ')
