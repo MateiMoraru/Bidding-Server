@@ -45,10 +45,10 @@ class Mongo:
     
 
     def add_tag(self, item: pymongo.CursorType, tag: str):
-        self.listings.find_one_and_update({"seller": item["seller"]}, {"$push": {"tags": tag}})
+        self.listings.find_one_and_update({"_id": item["_id"]}, {"$push": {"tags": tag}})
 
 
-    def request(self, name: str, target: str, value: int, message: str=None):
+    def send_offer(self, id: str, name: str, target: str, value: int):
         id = self.transaction_id(date(), name, target, value)
         request = {
             "from": name,
@@ -56,11 +56,9 @@ class Mongo:
             "value": value,
             "date": date(),
             "hash": id,
-            "message": ''
         }
-        if message is not None:
-            request["message"] = ''.join(message)
-        self.users.find_one_and_update({"name": name}, {"$push": {"requests": request}})
+        print(target, request)
+        self.users.find_one_and_update({"name": target}, {"$push": {"requests": request}})
 
     
     def get(self, name:str, field:str):
@@ -80,6 +78,10 @@ class Mongo:
             listings.append(el)
 
         return listings
+    
+
+    def get_requests(self, name: str):
+        return self.users.find_one({"name": name})["requests"]
 
 
     def get_user_raw(self, name:str):
@@ -173,7 +175,7 @@ class Mongo:
         account = self.users.find_one_and_update({"name": name}, {operation: {target_field: new_value}})
 
 def date():
-    return datetime.datetime.today().strftime('%Y-%m-%d')
+    return datetime.today().strftime('%Y-%m-%d')
 
 
 def log(message: str, error: bool=False):

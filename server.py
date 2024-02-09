@@ -87,6 +87,9 @@ class Server:
                 case "get":
                     if argv[1] == "listings":
                         self.handle_get_listings(conn, name, argv)
+                    if argv[1] == "requests":
+                        print("a")
+                        self.handle_get_requests(conn, name, argv)
                     else:
                         pass
                 case "select":
@@ -94,6 +97,8 @@ class Server:
                 case "add":
                     if argv[1] == "tag":
                         self.handle_add_tag(conn, name, argv)
+                case "offer":
+                    self.handle_offer(conn, name, argv)
                 case _:
                     self.log("Unknown command", conn, True)
 
@@ -133,6 +138,30 @@ class Server:
         self.send(conn, message)
         self.log(message)
 
+    
+    def handle_get_requests(self, conn: socket.socket, name: str, argv: List[str]):
+        requests = self.database.get_requests(name)
+        if len(requests) == 0:
+            self.send(conn, "No requests-w")
+            return
+        print(requests)
+        message = ""
+
+        for i, el in enumerate(requests):
+            sender = el["from"]
+            value = el["value"]
+            hash = el["hash"]
+            object = el["product_name"]
+            msg = ""
+            offset = len("{i}.") * ' '
+            msg += f"{i}.From: {sender}\n"
+            msg += f"{offset}Offering: {value}\n"
+            msg += f"{offset}Hash: {hash}\n"
+            message += msg + '\n'
+        
+        self.send(conn, message)
+        self.log(message)
+
 
     def handle_select(self, conn: socket.socket, name: str, argv: List[str]):
         try:
@@ -155,7 +184,7 @@ class Server:
             index = int(argv[2])
             tag = argv[3]
         except:
-            self.log("Expected: add tag <intex: int> <tag: str>", conn, True)
+            self.log("Expected: add tag <index: int> <tag: str>", conn, True)
             return
         
         try:
@@ -166,6 +195,25 @@ class Server:
             return
     
         self.log(f"Added tag: {tag} to listing: {item["product_name"]}", conn)
+
+
+    def handle_offer(self, conn: socket.socket, name: str, argv: List[str]):
+        try:
+            index = int(argv[1])
+            value = int(argv[2])
+        except:
+            self.log("Expected: offer <index: int> <value: int>", conn, True)
+            return
+        
+        try:
+            seller = self.listings[index]["seller"]
+            id = self.listings[index]['_id']
+            self.database.send_offer(id, name, seller, value)
+        except Exception as e:
+            self.log(f"You need to run: get listings {e}", conn, True)
+            return 
+
+        self.log(f"Sent offer to {seller} for {value}$", conn)
         
 
     def handle_sign_up(self, conn: socket.socket):
