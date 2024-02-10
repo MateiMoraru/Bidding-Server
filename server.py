@@ -51,11 +51,8 @@ class Server:
             self.shutdown()
         else:
             self.log(f"{name} connected successfully")
-            self.send(conn, "Connected successfully! -w")
 
-        #notifs = self.get_notifications(self, name)
-        #printls(notifs)
-        #self.sendls(notifs)
+        notifs = self.get_notifications(conn, name)
             
         self.loop(conn, addr, name)
 
@@ -86,10 +83,10 @@ class Server:
                     self.handle_sell_item(conn, name, argv)
                 case "get":
                     if argv[1] == "listings":
-                        self.handle_get_listings(conn, name, argv)
+                        self.handle_get_listings(conn)
                     if argv[1] == "requests":
                         print("a")
-                        self.handle_get_requests(conn, name, argv)
+                        self.handle_get_requests(conn, name)
                     else:
                         pass
                 case "select":
@@ -115,7 +112,7 @@ class Server:
         self.send(conn, "Listing created successfully-w")
 
     
-    def handle_get_listings(self, conn: socket.socket, name: str, argv: List[str]):
+    def handle_get_listings(self, conn: socket.socket):
         listings = self.database.get_listings()
         self.listings = listings
         message = ""
@@ -139,12 +136,12 @@ class Server:
         self.log(message)
 
     
-    def handle_get_requests(self, conn: socket.socket, name: str, argv: List[str]):
+    def handle_get_requests(self, conn: socket.socket, name: str):
         requests = self.database.get_requests(name)
+        self.requests = requests
         if len(requests) == 0:
             self.send(conn, "No requests-w")
-            return
-        print(requests)
+            return "No requests-w"
         message = ""
 
         for i, el in enumerate(requests):
@@ -153,14 +150,21 @@ class Server:
             hash = el["hash"]
             object = el["product_name"]
             msg = ""
-            offset = len("{i}.") * ' '
-            msg += f"{i}.From: {sender}\n"
+            offset = len("{i}") * ' '
+            msg += f"{i}. Offer for item: {object}\n"
+            msg += f"{offset}From: {sender}\n"
             msg += f"{offset}Offering: {value}\n"
             msg += f"{offset}Hash: {hash}\n"
             message += msg + '\n'
         
+        print(message)
         self.send(conn, message)
         self.log(message)
+        return requests
+
+    
+    def get_notifications(self, conn: socket.socket, name: str):
+        self.handle_get_requests(conn, name)
 
 
     def handle_select(self, conn: socket.socket, name: str, argv: List[str]):
@@ -208,7 +212,8 @@ class Server:
         try:
             seller = self.listings[index]["seller"]
             id = self.listings[index]['_id']
-            self.database.send_offer(id, name, seller, value)
+            product_name = self.listings[index]["product_name"]
+            self.database.send_offer(id, name, seller, value, product_name)
         except Exception as e:
             self.log(f"You need to run: get listings {e}", conn, True)
             return 
@@ -253,11 +258,6 @@ class Server:
             self.handle_log_in(conn)
 
         return name
-
-    
-    def get_notifications(self, name): #TODO: Use mongo
-        return ["No notifs:("]
-
 
 
     def shutdown(self):

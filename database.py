@@ -48,7 +48,7 @@ class Mongo:
         self.listings.find_one_and_update({"_id": item["_id"]}, {"$push": {"tags": tag}})
 
 
-    def send_offer(self, id: str, name: str, target: str, value: int):
+    def send_offer(self, id: str, name: str, target: str, value: int, product_name: str):
         id = self.transaction_id(date(), name, target, value)
         request = {
             "from": name,
@@ -56,6 +56,7 @@ class Mongo:
             "value": value,
             "date": date(),
             "hash": id,
+            "product_name": product_name
         }
         print(target, request)
         self.users.find_one_and_update({"name": target}, {"$push": {"requests": request}})

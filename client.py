@@ -31,7 +31,11 @@ class Client:
 
         
         try:
-            resp = self.recv()
+            #resp = self.recv()
+            #self.process_recv(resp)
+            print()
+            notifications = self.recv()
+            self.process_recv(notifications)
             self.run()
         except Exception as e:
             print(f"ERROR: {e}")
