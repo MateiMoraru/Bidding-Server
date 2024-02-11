@@ -42,7 +42,7 @@ class Mongo:
 
         self.listings.insert_one(listing)
         log(f"New listing added: \n\t{parse_json(listing)}")
-    
+
 
     def add_tag(self, item: pymongo.CursorType, tag: str):
         self.listings.find_one_and_update({"_id": item["_id"]}, {"$push": {"tags": tag}})
@@ -56,10 +56,24 @@ class Mongo:
             "value": value,
             "date": date(),
             "hash": id,
-            "product_name": product_name
+            "product_name": product_name,
+            "status": "Waiting"
         }
-        print(target, request)
         self.users.find_one_and_update({"name": target}, {"$push": {"requests": request}})
+
+
+    def remove_offer(self, name: str, index: int):
+        req = self.get_requests(name)[index]
+        self.users.update_one({"name": name}, {"$pull": {"requests": req}})
+
+    
+    def remove_listing(self, hash: int):
+        self.listings.delete_one({"hash": hash})
+
+
+    def add_money(self, name: str, money: int):
+        print(type(money), money)
+        self.users.find_one_and_update({"name": name}, {"$inc": {"balance": money}})
 
     
     def get(self, name:str, field:str):
@@ -69,7 +83,10 @@ class Mongo:
             log(f"Unable to find user: {name}", True)
         
         if find != None:
-            return find[field]
+            try:
+                return find[field]
+            except KeyError:
+                print(f"No field called {field} existing")
         return None
     
 

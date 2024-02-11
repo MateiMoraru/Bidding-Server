@@ -84,18 +84,22 @@ class Server:
                 case "get":
                     if argv[1] == "listings":
                         self.handle_get_listings(conn)
-                    if argv[1] == "requests":
+                    elif argv[1] == "requests":
                         print("a")
                         self.handle_get_requests(conn, name)
                     else:
-                        pass
+                        self.log("Expected: get <listings/requests>", conn, True)
                 case "select":
-                    selected_listing = self.handle_select(conn, name, argv)
+                    self.handle_select(conn, name, argv)
                 case "add":
                     if argv[1] == "tag":
                         self.handle_add_tag(conn, name, argv)
                 case "offer":
                     self.handle_offer(conn, name, argv)
+                case "accept":
+                    self.accept_offer(conn, name, argv)
+                case "decline":
+                    self.decline_offer(conn, name, argv)
                 case _:
                     self.log("Unknown command", conn, True)
 
@@ -149,15 +153,16 @@ class Server:
             value = el["value"]
             hash = el["hash"]
             object = el["product_name"]
+            status = el["status"]
             msg = ""
             offset = len("{i}") * ' '
             msg += f"{i}. Offer for item: {object}\n"
             msg += f"{offset}From: {sender}\n"
             msg += f"{offset}Offering: {value}\n"
             msg += f"{offset}Hash: {hash}\n"
+            msg += f"{offset}Status: {status}\n"
             message += msg + '\n'
         
-        print(message)
         self.send(conn, message)
         self.log(message)
         return requests
@@ -219,7 +224,54 @@ class Server:
             return 
 
         self.log(f"Sent offer to {seller} for {value}$", conn)
+
+
+    def accept_offer(self, conn: socket.socket, name: str, argv: List[str]):
+        try:
+            index = int(argv[1])
+        except:
+            self.log("Expected: accept <index: int>", conn, True)   
+            return 
         
+        try:
+            req = self.requests[index]
+            money = req["value"]
+            product = req["product_name"]
+            status = req["status"]
+            hash = req["hash"]
+        except Exception as e:
+            self.log("You need to run: get requests", conn, True)
+            return
+        
+        if status == "Waiting":
+            self.database.add_money(name, money)
+            self.database.remove_offer(name, index)
+            self.database.remove_listing(hash)
+            self.log(f"Successfully got {money} from selling {product}", conn)
+        else:
+            self.log(f"Request status is Sold, can't sell an item multiple times.", conn, True)
+    
+
+    def decline_offer(self, conn: socket.socket, name: str, argv: List[str]):
+        try:
+            index = int(argv[1])
+        except:
+            self.log("Expected: decline <index: int>", conn, True)   
+            return 
+        
+        try:
+            sender = self.requests[index]["from"]
+            status = self.requests[index]["status"]
+        except:
+            print("You need to run: get requests", conn, True)
+            return
+        
+        if status == "Waiting":
+            self.database.remove_offer(name, index)
+            self.log(f"Declined offer from {sender}", conn)
+        else:
+            self.log(f"Can't decline an already accepted request.", conn, True)
+
 
     def handle_sign_up(self, conn: socket.socket):
         name, pwd = self.recv(conn).split(' ')
